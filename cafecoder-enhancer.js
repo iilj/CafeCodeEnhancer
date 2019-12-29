@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2019.12.30.1
+// @version      2019.12.30.2
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
@@ -10,6 +10,46 @@
 
 (function () {
     'use strict';
+
+    // スタイル用クラスの定義を追加する
+    const csscontent = `
+/* h4 まわりの UI 改善 */
+h4 {
+    margin-top: 1rem;
+    border-bottom: 2px solid lightblue;
+    border-left: 10px solid lightblue;
+    padding-left: 0.5rem;
+}
+
+/* ページ最下部のコンテンツが見やすいように調整する */
+div.card {
+    marginBottom: 30px;
+}
+
+/* コンテストページ上部のメニューを使いやすくする */
+div.card-body a.nav-item.nav-link {
+    border: 1px solid #bbbbbb;
+    margin: 0.3rem;
+    border-radius: 0.3rem;
+}
+div.card-body a.nav-item.nav-link:hover{
+    background-color: #cccccc;
+}
+
+.cce-myprespan {
+    display: block;
+    margin: 0.4rem;
+    padding: 0.4rem;
+    background-color: #efefef;
+    border: 1px solid #bbbbbb;
+    border-radius: 0.4rem;
+    font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+    `;
+    const cce_style = document.createElement('style');
+    cce_style.type = "text/css";
+    cce_style.innerText = csscontent;
+    document.getElementsByTagName('head').item(0).appendChild(cce_style);
 
     // タイトルがない場合につける
     let result;
@@ -36,32 +76,15 @@
         lnk.href = lnk.href.replace('.html', '.php');
     });
 
-    // h4 まわりの UI 改善
-    document.querySelectorAll("h4").forEach((h4) => {
-        h4.setAttribute(
-            "style",
-            "margin-top: 1rem;"
-            + "border-bottom: 2px solid lightblue;"
-            + "border-left: 10px solid lightblue;"
-            + "padding-left: 0.5rem;");
-    });
-
+    // 問題ページだったとき
     if (location.href.indexOf("/Problems/") != -1) {
         // 入出力サンプルの UI 改善＋コピーボタンの追加
         document.querySelectorAll("span[style]:not([class])").forEach((span, idx, _nodelist) => {
             if (!span.style.backgroundColor && span.getAttribute("style").indexOf("background-color") == -1) {
                 return;
             }
-            span.setAttribute(
-                "style",
-                "display: block;"
-                + "margin: 0.4rem;"
-                + "padding: 0.4rem;"
-                + "background-color: #efefef;"
-                + "border: 1px solid #bbbbbb;"
-                + "border-radius: 0.4rem;"
-                + "font-family: Menlo,Monaco,Consolas,\"Courier New\",monospace;");
-            span.id = `myprespan-${idx}`;
+            span.classList.add('cce-myprespan');
+            span.id = `cce-myprespan-${idx}`;
             if (span.firstChild.nodeName == "#text") {
                 span.firstChild.data = span.firstChild.data.trim();
             }
@@ -71,7 +94,7 @@
 
             let btn = document.createElement("button");
             btn.innerText = "テキストをコピー！";
-            btn.setAttribute("class", "btn btn-primary copy-sample-input");
+            btn.classList.add('btn', 'btn-primary', 'copy-sample-input');
             btn.style.display = "block";
             btn.addEventListener("click", () => {
                 const elem = document.getElementById(span.id);
