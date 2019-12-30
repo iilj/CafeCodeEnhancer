@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2019.12.30.2
+// @version      2019.12.30.3
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
@@ -36,22 +36,29 @@ div.card-body a.nav-item.nav-link:hover{
     background-color: #cccccc;
 }
 
+/* 入出力サンプルのUI */
 .cce-myprespan {
     display: block;
     margin: 0.4rem;
     padding: 0.4rem;
-    background-color: #efefef;
+    background-color: #efefef !important;
     border: 1px solid #bbbbbb;
     border-radius: 0.4rem;
     font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
+}
+.CodeMirror {
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
 }
     `;
     const cce_style = document.createElement('style');
     cce_style.type = "text/css";
     cce_style.innerText = csscontent;
-    document.getElementsByTagName('head').item(0).appendChild(cce_style);
 
-    // タイトルがない場合につける
+    const head = document.querySelector("head");
+    head.insertAdjacentElement('beforeend', cce_style);
+
+    // add title tag when there exists no title tag
     let result;
     if (!document.querySelector("title")) {
         const title = document.createElement("title");
@@ -65,10 +72,10 @@ div.card-body a.nav-item.nav-link:hover{
         }
         stitle += (stitle == "" ? "" : " : ") + "CafeCoder";
         title.innerText = stitle;
-        document.querySelector("head").insertAdjacentElement('afterbegin', title);
+        head.insertAdjacentElement('afterbegin', title);
     }
 
-    // 不正なリンクの修正
+    // fix invalid uri
     document.querySelectorAll("a[href*='kakecoder.com']").forEach((lnk) => {
         lnk.href = lnk.href.replace('kakecoder.com', 'cafecoder.top');
     });
@@ -76,9 +83,9 @@ div.card-body a.nav-item.nav-link:hover{
         lnk.href = lnk.href.replace('.html', '.php');
     });
 
-    // 問題ページだったとき
+    // when problem page
     if (location.href.indexOf("/Problems/") != -1) {
-        // 入出力サンプルの UI 改善＋コピーボタンの追加
+        // improve UI/UX of I/O sample, and add sample copy button feature
         document.querySelectorAll("span[style]:not([class])").forEach((span, idx, _nodelist) => {
             if (!span.style.backgroundColor && span.getAttribute("style").indexOf("background-color") == -1) {
                 return;
@@ -109,8 +116,60 @@ div.card-body a.nav-item.nav-link:hover{
             span.insertAdjacentElement('beforebegin', btn);
         });
 
-        // C++17 を標準で選択する
-        document.querySelector("select[name=language]").selectedIndex = 1;
-    }
+        // CodeMirror js
+        const cm_js_ls = [
+            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js'
+        ];
+        let loadcnt = 0;
+        let editor;
+        const textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
+        cm_js_ls.forEach((jsuri) => {
+            const cce_cm_script = document.createElement('script');
+            cce_cm_script.onload = () => {
+                loadcnt++;
+                if (loadcnt == cm_js_ls.length) {
+                    editor = CodeMirror.fromTextArea(textarea, {
+                        mode: "text/x-c++src",
+                        lineNumbers: true,
+                    });
+                }
+            };
+            cce_cm_script.src = jsuri;
+            head.insertAdjacentElement('beforeend', cce_cm_script);
+        });
 
+        // CodeMirror css
+        const cce_cm_style = document.createElement('link');
+        cce_cm_style.type = "text/css";
+        cce_cm_style.rel = 'stylesheet';
+        cce_cm_style.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css';
+        head.insertAdjacentElement('beforeend', cce_cm_style);
+
+        // CodeMirror lang selection changed event handler
+        const selectlang = document.querySelector('form[name=submit_form] select[name=language]');
+        selectlang.addEventListener('change', (event) => {
+            const modelist = [
+                'text/x-csrc', 'text/x-c++src', 'text/x-java', 'python', 'text/x-csharp'
+            ];
+            editor.setOption("mode", modelist[event.target.selectedIndex]);
+        });
+
+        // select lang C++17 as a default
+        selectlang.selectedIndex = 1;
+        selectlang.classList.add('form-control');
+
+        // CodeMirror submit preprocess, remove default broken event
+        const submitbtn = document.querySelector('form[name=submit_form] input[type=submit]');
+        submitbtn.removeAttribute("onclick");
+        submitbtn.classList.add('btn-primary');
+        document.submit_form.addEventListener('submit', (event) => {
+            editor.save();
+            if (textarea.value == '') {
+                alert("ソースコードが入力されていません");
+                event.preventDefault();
+            }
+        });
+    }
 })();
