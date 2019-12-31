@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2019.12.30.3
+// @version      2019.12.31.1
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
@@ -81,6 +81,12 @@ div.card-body a.nav-item.nav-link:hover{
     });
     document.querySelectorAll("a[href*='.html']").forEach((lnk) => {
         lnk.href = lnk.href.replace('.html', '.php');
+    });
+    document.querySelectorAll("a[href^='//'][href$='.php']").forEach((lnk) => {
+        const href = lnk.getAttribute('href');
+        if (result = href.match(/^\/\/([^\/]+)\.(php|html?)$/)) {
+            lnk.setAttribute('href', href.replace('//', './'));
+        }
     });
 
     // when problem page
