@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2019.12.31.1
+// @version      2020.01.03.1
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
@@ -37,7 +37,7 @@ div.card-body a.nav-item.nav-link:hover{
 }
 
 /* 入出力サンプルのUI */
-.cce-myprespan {
+.cce-myprenode {
     display: block;
     margin: 0.4rem;
     padding: 0.4rem;
@@ -68,14 +68,18 @@ div.card-body a.nav-item.nav-link:hover{
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/problem_list\.(php|html?)$/)) {
             stitle += `${result[1]} 問題一覧`;
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/Problems\/([^\/]+)\.(php|html?)$/)) {
-            stitle += `${result[1]}-${result[2]} ${document.querySelector("h3").innerText.trim()}`;
+            stitle += `${result[1]}-${result[2]}`;
+            const h3 = document.querySelector("h3");
+            if (h3) {
+                stitle += " " + h3.innerText.trim();
+            }
         }
         stitle += (stitle == "" ? "" : " : ") + "CafeCoder";
         title.innerText = stitle;
         head.insertAdjacentElement('afterbegin', title);
     }
 
-    // fix invalid uri
+    // fix invalid/broken uri
     document.querySelectorAll("a[href*='kakecoder.com']").forEach((lnk) => {
         lnk.href = lnk.href.replace('kakecoder.com', 'cafecoder.top');
     });
@@ -85,24 +89,24 @@ div.card-body a.nav-item.nav-link:hover{
     document.querySelectorAll("a[href^='//'][href$='.php']").forEach((lnk) => {
         const href = lnk.getAttribute('href');
         if (result = href.match(/^\/\/([^\/]+)\.(php|html?)$/)) {
-            lnk.setAttribute('href', href.replace('//', './'));
+            lnk.setAttribute('href', href.replace('//', location.href.indexOf("/Problems/") != -1 ? '../' : './'));
         }
     });
 
     // when problem page
-    if (location.href.indexOf("/Problems/") != -1) {
+    if (location.href.indexOf("/Problems/") != -1 && document.querySelector("h3") != null) {
         // improve UI/UX of I/O sample, and add sample copy button feature
-        document.querySelectorAll("span[style]:not([class])").forEach((span, idx, _nodelist) => {
-            if (!span.style.backgroundColor && span.getAttribute("style").indexOf("background-color") == -1) {
+        document.querySelectorAll("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
+            if (!node.classList.contains('sample') && !node.style.backgroundColor && node.getAttribute("style").indexOf("background-color") == -1) {
                 return;
             }
-            span.classList.add('cce-myprespan');
-            span.id = `cce-myprespan-${idx}`;
-            if (span.firstChild.nodeName == "#text") {
-                span.firstChild.data = span.firstChild.data.trim();
+            node.classList.add('cce-myprenode');
+            node.id = `cce-myprenode-${idx}`;
+            if (node.firstChild.nodeName == "#text") {
+                node.firstChild.data = node.firstChild.data.trim();
             }
-            if (span.lastChild.nodeName == "#text") {
-                span.lastChild.data = span.lastChild.data.trim();
+            if (node.lastChild.nodeName == "#text") {
+                node.lastChild.data = node.lastChild.data.trim();
             }
 
             let btn = document.createElement("button");
@@ -110,7 +114,7 @@ div.card-body a.nav-item.nav-link:hover{
             btn.classList.add('btn', 'btn-primary', 'copy-sample-input');
             btn.style.display = "block";
             btn.addEventListener("click", () => {
-                const elem = document.getElementById(span.id);
+                const elem = document.getElementById(node.id);
                 document.getSelection().selectAllChildren(elem);
                 if (document.execCommand("copy")) {
                     alert("テキストをコピーしました！");
@@ -119,31 +123,38 @@ div.card-body a.nav-item.nav-link:hover{
                     alert("コピーに失敗してしまったようです．");
                 }
             }, false);
-            span.insertAdjacentElement('beforebegin', btn);
+            node.insertAdjacentElement('beforebegin', btn);
         });
 
-        // CodeMirror js
-        const cm_js_ls = [
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js'
-        ];
-        let loadcnt = 0;
-        let editor;
-        const textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
-        cm_js_ls.forEach((jsuri) => {
+        // function to load js
+        const insertJS = (jsuri, handler) => {
             const cce_cm_script = document.createElement('script');
-            cce_cm_script.onload = () => {
-                loadcnt++;
-                if (loadcnt == cm_js_ls.length) {
+            cce_cm_script.onload = handler;
+            cce_cm_script.src = jsuri;
+            head.insertAdjacentElement('beforeend', cce_cm_script);
+        }
+
+        // CodeMirror js
+        // ensure that CodeMirror main script is loaded BEFORE any mode plugin js
+        let editor, textarea;
+        insertJS('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js', () => {
+            const cm_js_ls = [
+                'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js'
+            ];
+            let loadcnt = 0;
+            textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
+            cm_js_ls.forEach((jsuri) => {
+                insertJS(jsuri, () => {
+                    if (++loadcnt < cm_js_ls.length) {
+                        return;
+                    }
                     editor = CodeMirror.fromTextArea(textarea, {
                         mode: "text/x-c++src",
                         lineNumbers: true,
                     });
-                }
-            };
-            cce_cm_script.src = jsuri;
-            head.insertAdjacentElement('beforeend', cce_cm_script);
+                })
+            });
         });
 
         // CodeMirror css
