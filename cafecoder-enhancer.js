@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2020.01.03.1
+// @version      2020.01.03.2
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
@@ -95,6 +95,27 @@ div.card-body a.nav-item.nav-link:hover{
 
     // when problem page
     if (location.href.indexOf("/Problems/") != -1 && document.querySelector("h3") != null) {
+        // function to load js
+        const insertJS = (jsuri, handler) => {
+            const cce_cm_script = document.createElement('script');
+            cce_cm_script.onload = handler;
+            cce_cm_script.src = jsuri;
+            head.insertAdjacentElement('beforeend', cce_cm_script);
+        }
+
+        // function to load css
+        const insertCSS = (cssuri) => {
+            const cce_cm_style = document.createElement('link');
+            cce_cm_style.type = "text/css";
+            cce_cm_style.rel = 'stylesheet';
+            cce_cm_style.href = cssuri;
+            head.insertAdjacentElement('beforeend', cce_cm_style);
+        }
+
+        // noty js
+        insertJS('https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.js');
+        insertCSS('https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.css');
+
         // improve UI/UX of I/O sample, and add sample copy button feature
         document.querySelectorAll("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
             if (!node.classList.contains('sample') && !node.style.backgroundColor && node.getAttribute("style").indexOf("background-color") == -1) {
@@ -117,22 +138,24 @@ div.card-body a.nav-item.nav-link:hover{
                 const elem = document.getElementById(node.id);
                 document.getSelection().selectAllChildren(elem);
                 if (document.execCommand("copy")) {
-                    alert("テキストをコピーしました！");
+                    new Noty({
+                        type: 'success',
+                        layout: 'top',
+                        timeout: 3000,
+                        text: 'テキストをコピーしました！'
+                    }).show();
                     document.getSelection().removeAllRanges();
                 } else {
-                    alert("コピーに失敗してしまったようです．");
+                    new Noty({
+                        type: 'error',
+                        layout: 'top',
+                        timeout: 3000,
+                        text: 'コピーに失敗してしまったようです．'
+                    }).show();
                 }
             }, false);
             node.insertAdjacentElement('beforebegin', btn);
         });
-
-        // function to load js
-        const insertJS = (jsuri, handler) => {
-            const cce_cm_script = document.createElement('script');
-            cce_cm_script.onload = handler;
-            cce_cm_script.src = jsuri;
-            head.insertAdjacentElement('beforeend', cce_cm_script);
-        }
 
         // CodeMirror js
         // ensure that CodeMirror main script is loaded BEFORE any mode plugin js
@@ -158,11 +181,7 @@ div.card-body a.nav-item.nav-link:hover{
         });
 
         // CodeMirror css
-        const cce_cm_style = document.createElement('link');
-        cce_cm_style.type = "text/css";
-        cce_cm_style.rel = 'stylesheet';
-        cce_cm_style.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css';
-        head.insertAdjacentElement('beforeend', cce_cm_style);
+        insertCSS('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css');
 
         // CodeMirror lang selection changed event handler
         const selectlang = document.querySelector('form[name=submit_form] select[name=language]');
@@ -184,7 +203,12 @@ div.card-body a.nav-item.nav-link:hover{
         document.submit_form.addEventListener('submit', (event) => {
             editor.save();
             if (textarea.value == '') {
-                alert("ソースコードが入力されていません");
+                new Noty({
+                    type: 'warning',
+                    layout: 'top',
+                    timeout: 3000,
+                    text: 'ソースコードが入力されていません'
+                }).show();
                 event.preventDefault();
             }
         });
