@@ -1,11 +1,19 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
-// @namespace    http://tampermonkey.net/
-// @version      2020.01.03.3
+// @namespace    iilj
+// @version      2020.01.04.1
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
-// @author       iilj (Twitter @iiljj, AtCoder @abb)
+// @author       iilj
+// @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
 // @match        https://www.cafecoder.top/*
-// @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js
+// @resource     css_noty https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.css
+// @resource     css_cm https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // ==/UserScript==
 
 /* globals CodeMirror, Noty */
@@ -13,8 +21,9 @@
 (function () {
     'use strict';
 
-    // スタイル用クラスの定義を追加する
-    const csscontent = `
+    GM_addStyle(GM_getResourceText('css_noty'));
+    GM_addStyle(GM_getResourceText('css_cm'));
+    GM_addStyle(`
 /* h4 まわりの UI 改善 */
 h4 {
     margin-top: 1rem;
@@ -52,13 +61,16 @@ div.card-body a.nav-item.nav-link:hover{
     border-top: 1px solid black;
     border-bottom: 1px solid black;
 }
-    `;
-    const cce_style = document.createElement('style');
-    cce_style.type = "text/css";
-    cce_style.innerText = csscontent;
+    `);
 
-    const head = document.querySelector("head");
-    head.insertAdjacentElement('beforeend', cce_style);
+    const msg = (type, text) => {
+        new Noty({
+            type: type,
+            layout: 'top',
+            timeout: 3000,
+            text: text
+        }).show();
+    };
 
     // add title tag when there exists no title tag
     let result;
@@ -78,7 +90,7 @@ div.card-body a.nav-item.nav-link:hover{
         }
         stitle += (stitle == "" ? "" : " : ") + "CafeCoder";
         title.innerText = stitle;
-        head.insertAdjacentElement('afterbegin', title);
+        document.querySelector("head").insertAdjacentElement('afterbegin', title);
     }
 
     // fix invalid/broken uri
@@ -97,27 +109,6 @@ div.card-body a.nav-item.nav-link:hover{
 
     // when problem page
     if (location.href.indexOf("/Problems/") != -1 && document.querySelector("h3") != null) {
-        // function to load js
-        const insertJS = (jsuri, handler) => {
-            const cce_cm_script = document.createElement('script');
-            cce_cm_script.onload = handler;
-            cce_cm_script.src = jsuri;
-            head.insertAdjacentElement('beforeend', cce_cm_script);
-        }
-
-        // function to load css
-        const insertCSS = (cssuri) => {
-            const cce_cm_style = document.createElement('link');
-            cce_cm_style.type = "text/css";
-            cce_cm_style.rel = 'stylesheet';
-            cce_cm_style.href = cssuri;
-            head.insertAdjacentElement('beforeend', cce_cm_style);
-        }
-
-        // noty js
-        insertJS('https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.js');
-        insertCSS('https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.css');
-
         // improve UI/UX of I/O sample, and add sample copy button feature
         document.querySelectorAll("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
             if (!node.classList.contains('sample') && !node.style.backgroundColor && node.getAttribute("style").indexOf("background-color") == -1) {
@@ -140,50 +131,21 @@ div.card-body a.nav-item.nav-link:hover{
                 const elem = document.getElementById(node.id);
                 document.getSelection().selectAllChildren(elem);
                 if (document.execCommand("copy")) {
-                    new Noty({
-                        type: 'success',
-                        layout: 'top',
-                        timeout: 3000,
-                        text: 'テキストをコピーしました！'
-                    }).show();
+                    msg('success', 'テキストをコピーしました！');
                     document.getSelection().removeAllRanges();
                 } else {
-                    new Noty({
-                        type: 'error',
-                        layout: 'top',
-                        timeout: 3000,
-                        text: 'コピーに失敗してしまったようです．'
-                    }).show();
+                    msg('error', 'コピーに失敗してしまったようです．');
                 }
             }, false);
             node.insertAdjacentElement('beforebegin', btn);
         });
 
-        // CodeMirror js
-        // ensure that CodeMirror main script is loaded BEFORE any mode plugin js
-        let editor, textarea;
-        insertJS('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js', () => {
-            const cm_js_ls = [
-                'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js',
-                'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js'
-            ];
-            let loadcnt = 0;
-            textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
-            cm_js_ls.forEach((jsuri) => {
-                insertJS(jsuri, () => {
-                    if (++loadcnt < cm_js_ls.length) {
-                        return;
-                    }
-                    editor = CodeMirror.fromTextArea(textarea, {
-                        mode: "text/x-c++src",
-                        lineNumbers: true,
-                    });
-                })
-            });
+        // CodeMirror init
+        const textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: "text/x-c++src",
+            lineNumbers: true,
         });
-
-        // CodeMirror css
-        insertCSS('https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css');
 
         // CodeMirror lang selection changed event handler
         const selectlang = document.querySelector('form[name=submit_form] select[name=language]');
@@ -205,12 +167,7 @@ div.card-body a.nav-item.nav-link:hover{
         document.submit_form.addEventListener('submit', (event) => {
             editor.save();
             if (textarea.value == '') {
-                new Noty({
-                    type: 'warning',
-                    layout: 'top',
-                    timeout: 3000,
-                    text: 'ソースコードが入力されていません'
-                }).show();
+                msg('warning', 'ソースコードが入力されていません');
                 event.preventDefault();
             }
         });
