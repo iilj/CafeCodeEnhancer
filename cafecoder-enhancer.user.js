@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    iilj
-// @version      2020.01.05.1
+// @version      2020.01.05.2
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj
 // @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
@@ -42,9 +42,14 @@ div.card-body a.nav-item.nav-link {
     border: 1px solid #bbbbbb;
     margin: 0.3rem;
     border-radius: 0.3rem;
+    color: #007bff;
+}
+div.card-body a.nav-item.nav-link.cce-active {
+    background-color: #ffffff;
+    color: rgba(0,0,0,.5);
 }
 div.card-body a.nav-item.nav-link:hover{
-    background-color: #cccccc;
+    background-color: #dddddd;
 }
 
 /* 入出力サンプルのUI */
@@ -60,6 +65,55 @@ div.card-body a.nav-item.nav-link:hover{
 .CodeMirror {
     border-top: 1px solid black;
     border-bottom: 1px solid black;
+}
+
+/* icon */
+@font-face {
+	font-family: 'Glyphicons Halflings';
+	src: url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.eot');
+	src: url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.eot?#iefix') format('embedded-opentype'),
+         url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.woff2') format('woff2'),
+         url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.woff') format('woff'),
+         url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.ttf') format('truetype'),
+         url('https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/fonts/glyphicons-halflings-regular.svg#glyphicons_halflingsregular') format('svg')
+}
+.glyphicon {
+	position: relative;
+	top: 1px;
+	display: inline-block;
+	font-family: 'Glyphicons Halflings';
+	font-style: normal;
+	font-weight: normal;
+	line-height: 1;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+    margin-right: 0.2rem;
+}
+.glyphicon-home:before {
+	content: "\\e021"
+}
+.glyphicon-tasks:before {
+	content: "\\e137"
+}
+.glyphicon-sort-by-attributes-alt:before {
+	content: "\\e156"
+}
+.glyphicon-user:before {
+	content: "\\e008"
+}
+.glyphicon-list:before {
+	content: "\\e056"
+}
+* {
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box
+}
+*:before,
+*:after {
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box
 }
     `);
 
@@ -107,6 +161,39 @@ div.card-body a.nav-item.nav-link:hover{
         const href = lnk.getAttribute('href');
         if (result = href.match(/^\/\/([^\/]+)\.(php|html?)$/)) {
             lnk.setAttribute('href', href.replace('//', location.href.indexOf("/Problems/") != -1 ? '../' : './'));
+        }
+    });
+
+    // add icon
+    dqsa('div.card-body a.nav-item.nav-link').forEach((lnk) => {
+        const href = lnk.getAttribute('href');
+        let type = 'home';
+        if (result = href.match(/([^\/]+).(php|html?)(\?[^/]+)?$/)) {
+            const nm = result[1];
+            switch (nm) {
+                case 'index':
+                    type = 'home';
+                    break;
+                case 'problem_list':
+                    type = 'tasks';
+                    break;
+                case 'ranking':
+                    type = 'sort-by-attributes-alt';
+                    break;
+                case 'my_submit':
+                    type = 'user';
+                    break;
+                case 'all_submit':
+                    type = 'list';
+                    break;
+            }
+        }
+        const icon = document.createElement("span");
+        icon.classList.add('glyphicon', `glyphicon-${type}`);
+        icon.setAttribute('aria-hidden', 'true');
+        lnk.insertAdjacentElement('afterbegin', icon);
+        if (lnk.href == location.href) {
+            lnk.classList.add('cce-active');
         }
     });
 
