@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    http://tampermonkey.net/
-// @version      2020.01.03.2
+// @version      2020.01.03.3
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj (Twitter @iiljj, AtCoder @abb)
 // @match        https://www.cafecoder.top/*
 // @grant        none
 // ==/UserScript==
+
+/* globals CodeMirror, Noty */
 
 (function () {
     'use strict';
