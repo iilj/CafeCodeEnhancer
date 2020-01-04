@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    iilj
-// @version      2020.01.05.2
+// @version      2020.01.05.3
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj
 // @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
@@ -10,13 +10,14 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.js
 // @resource     css_noty https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.css
 // @resource     css_cm https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
 // ==/UserScript==
 
-/* globals CodeMirror, Noty */
+/* globals CodeMirror, Noty, List */
 
 (function () {
     'use strict';
@@ -65,6 +66,55 @@ div.card-body a.nav-item.nav-link:hover{
 .CodeMirror {
     border-top: 1px solid black;
     border-bottom: 1px solid black;
+}
+
+/* sortable table */
+table.table th {
+    padding: 8px;
+}
+table.table tbody th {
+    font-weight: normal; /* hotfix for unformal use of th tag */
+}
+table thead th[data-sort] {
+    cursor: pointer;
+    color: #007bff;
+}
+table thead th[data-sort]:hover {
+    background-color: #dddddd;
+}
+table thead th[data-sort].sort.desc:after {
+    content: " ▼";
+}
+table thead th[data-sort].sort.asc:after {
+    content: " ▲";
+}
+
+/* result icon */
+span.result, th.result>span {
+    display: inline;
+    padding: .2em .6em .3em;
+    font-size: 75%;
+    font-weight: bold;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: .25em;
+    border: none;
+    -webkit-text-stroke: unset;
+    text-shadow: none;
+    margin: 0;
+    cursor: default;
+}
+.AC {
+    background-color: #5cb85c;
+}
+.WA, .TLE {
+    background-color: #f0ad4e;
+}
+.WJ {
+    background-color: #777;
 }
 
 /* icon */
@@ -260,6 +310,59 @@ div.card-body a.nav-item.nav-link:hover{
                 msg('warning', 'ソースコードが入力されていません');
                 event.preventDefault();
             }
+        });
+    } else if (location.href.indexOf("/all_submit.php?") != -1 || location.href.indexOf("/my_submit.php?") != -1) {
+        // on submit list page
+        const parent = dqs('div.card-body');
+        parent.id = 'cce-list-parent';
+        const table = parent.querySelector('table.table');
+        table.classList.add('table-striped', 'small');
+
+        const tbody = table.querySelector('tbody');
+        tbody.classList.add('list');
+        tbody.querySelectorAll('tr').forEach((tr) => {
+            tr.querySelectorAll('th').forEach((td, idx, nodelist) => { /* unformal html (th here should be td) */
+                if (idx == nodelist.length - 1) {
+                    return;
+                }
+                td.classList.add(`cce-list-sort-${idx}`);
+            });
+        });
+
+        parent.querySelector('thead').querySelectorAll('tr th').forEach((th, idx, nodelist) => {
+            if (idx == nodelist.length - 1) {
+                return;
+            } else if (idx == 1) {
+                th.classList.add('desc');
+            }
+            th.classList.add('sort');
+            th.setAttribute('data-sort', `cce-list-sort-${idx}`);
+        });
+        const userList = new List(parent.id, {
+            valueNames: ['cce-list-sort-0', 'cce-list-sort-1', 'cce-list-sort-2', 'cce-list-sort-3']
+        });
+    } else if (location.href.indexOf("/problem_list.") != -1) {
+        const table = dqs('table.table');
+
+        const thead = table.querySelector('thead tr');
+        const th0 = document.createElement("th");
+        th0.innerText = '#';
+        thead.insertAdjacentElement('afterbegin', th0);
+
+        table.querySelectorAll('tbody tr').forEach((tr) => {
+            const tr0 = document.createElement("th");
+            console.log(tr.querySelector('a[href]').href);
+            const a0 = tr.querySelector('a[href]');
+            if (result = a0.href.match(/\/([^\/])\.(php|html?)?$/)) {
+                const pid = result[1];
+                const a1 = document.createElement("a");
+                a1.href = a0.href;
+                a1.innerText = pid;
+                tr0.insertAdjacentElement('afterbegin', a1);
+            } else {
+                tr0.innerText = '?';
+            }
+            tr.insertAdjacentElement('afterbegin', tr0);
         });
     }
 })();
