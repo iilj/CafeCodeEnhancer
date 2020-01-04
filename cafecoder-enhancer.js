@@ -1,18 +1,29 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
-// @namespace    http://tampermonkey.net/
-// @version      2019.12.30.3
+// @namespace    iilj
+// @version      2020.01.04.1
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
-// @author       iilj (Twitter @iiljj, AtCoder @abb)
+// @author       iilj
+// @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
 // @match        https://www.cafecoder.top/*
-// @grant        none
+// @require      https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js
+// @resource     css_noty https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.css
+// @resource     css_cm https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css
+// @grant        GM_addStyle
+// @grant        GM_getResourceText
 // ==/UserScript==
+
+/* globals CodeMirror, Noty */
 
 (function () {
     'use strict';
 
-    // スタイル用クラスの定義を追加する
-    const csscontent = `
+    GM_addStyle(GM_getResourceText('css_noty'));
+    GM_addStyle(GM_getResourceText('css_cm'));
+    GM_addStyle(`
 /* h4 まわりの UI 改善 */
 h4 {
     margin-top: 1rem;
@@ -37,7 +48,7 @@ div.card-body a.nav-item.nav-link:hover{
 }
 
 /* 入出力サンプルのUI */
-.cce-myprespan {
+.cce-myprenode {
     display: block;
     margin: 0.4rem;
     padding: 0.4rem;
@@ -50,13 +61,16 @@ div.card-body a.nav-item.nav-link:hover{
     border-top: 1px solid black;
     border-bottom: 1px solid black;
 }
-    `;
-    const cce_style = document.createElement('style');
-    cce_style.type = "text/css";
-    cce_style.innerText = csscontent;
+    `);
 
-    const head = document.querySelector("head");
-    head.insertAdjacentElement('beforeend', cce_style);
+    const msg = (type, text) => {
+        new Noty({
+            type: type,
+            layout: 'top',
+            timeout: 3000,
+            text: text
+        }).show();
+    };
 
     // add title tag when there exists no title tag
     let result;
@@ -68,35 +82,45 @@ div.card-body a.nav-item.nav-link:hover{
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/problem_list\.(php|html?)$/)) {
             stitle += `${result[1]} 問題一覧`;
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/Problems\/([^\/]+)\.(php|html?)$/)) {
-            stitle += `${result[1]}-${result[2]} ${document.querySelector("h3").innerText.trim()}`;
+            stitle += `${result[1]}-${result[2]}`;
+            const h3 = document.querySelector("h3");
+            if (h3) {
+                stitle += " " + h3.innerText.trim();
+            }
         }
         stitle += (stitle == "" ? "" : " : ") + "CafeCoder";
         title.innerText = stitle;
-        head.insertAdjacentElement('afterbegin', title);
+        document.querySelector("head").insertAdjacentElement('afterbegin', title);
     }
 
-    // fix invalid uri
+    // fix invalid/broken uri
     document.querySelectorAll("a[href*='kakecoder.com']").forEach((lnk) => {
         lnk.href = lnk.href.replace('kakecoder.com', 'cafecoder.top');
     });
     document.querySelectorAll("a[href*='.html']").forEach((lnk) => {
         lnk.href = lnk.href.replace('.html', '.php');
     });
+    document.querySelectorAll("a[href^='//'][href$='.php']").forEach((lnk) => {
+        const href = lnk.getAttribute('href');
+        if (result = href.match(/^\/\/([^\/]+)\.(php|html?)$/)) {
+            lnk.setAttribute('href', href.replace('//', location.href.indexOf("/Problems/") != -1 ? '../' : './'));
+        }
+    });
 
     // when problem page
-    if (location.href.indexOf("/Problems/") != -1) {
+    if (location.href.indexOf("/Problems/") != -1 && document.querySelector("h3") != null) {
         // improve UI/UX of I/O sample, and add sample copy button feature
-        document.querySelectorAll("span[style]:not([class])").forEach((span, idx, _nodelist) => {
-            if (!span.style.backgroundColor && span.getAttribute("style").indexOf("background-color") == -1) {
+        document.querySelectorAll("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
+            if (!node.classList.contains('sample') && !node.style.backgroundColor && node.getAttribute("style").indexOf("background-color") == -1) {
                 return;
             }
-            span.classList.add('cce-myprespan');
-            span.id = `cce-myprespan-${idx}`;
-            if (span.firstChild.nodeName == "#text") {
-                span.firstChild.data = span.firstChild.data.trim();
+            node.classList.add('cce-myprenode');
+            node.id = `cce-myprenode-${idx}`;
+            if (node.firstChild.nodeName == "#text") {
+                node.firstChild.data = node.firstChild.data.trim();
             }
-            if (span.lastChild.nodeName == "#text") {
-                span.lastChild.data = span.lastChild.data.trim();
+            if (node.lastChild.nodeName == "#text") {
+                node.lastChild.data = node.lastChild.data.trim();
             }
 
             let btn = document.createElement("button");
@@ -104,48 +128,24 @@ div.card-body a.nav-item.nav-link:hover{
             btn.classList.add('btn', 'btn-primary', 'copy-sample-input');
             btn.style.display = "block";
             btn.addEventListener("click", () => {
-                const elem = document.getElementById(span.id);
+                const elem = document.getElementById(node.id);
                 document.getSelection().selectAllChildren(elem);
                 if (document.execCommand("copy")) {
-                    alert("テキストをコピーしました！");
+                    msg('success', 'テキストをコピーしました！');
                     document.getSelection().removeAllRanges();
                 } else {
-                    alert("コピーに失敗してしまったようです．");
+                    msg('error', 'コピーに失敗してしまったようです．');
                 }
             }, false);
-            span.insertAdjacentElement('beforebegin', btn);
+            node.insertAdjacentElement('beforebegin', btn);
         });
 
-        // CodeMirror js
-        const cm_js_ls = [
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/clike/clike.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/mode/python/python.js'
-        ];
-        let loadcnt = 0;
-        let editor;
+        // CodeMirror init
         const textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
-        cm_js_ls.forEach((jsuri) => {
-            const cce_cm_script = document.createElement('script');
-            cce_cm_script.onload = () => {
-                loadcnt++;
-                if (loadcnt == cm_js_ls.length) {
-                    editor = CodeMirror.fromTextArea(textarea, {
-                        mode: "text/x-c++src",
-                        lineNumbers: true,
-                    });
-                }
-            };
-            cce_cm_script.src = jsuri;
-            head.insertAdjacentElement('beforeend', cce_cm_script);
+        const editor = CodeMirror.fromTextArea(textarea, {
+            mode: "text/x-c++src",
+            lineNumbers: true,
         });
-
-        // CodeMirror css
-        const cce_cm_style = document.createElement('link');
-        cce_cm_style.type = "text/css";
-        cce_cm_style.rel = 'stylesheet';
-        cce_cm_style.href = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.48.4/codemirror.css';
-        head.insertAdjacentElement('beforeend', cce_cm_style);
 
         // CodeMirror lang selection changed event handler
         const selectlang = document.querySelector('form[name=submit_form] select[name=language]');
@@ -167,7 +167,7 @@ div.card-body a.nav-item.nav-link:hover{
         document.submit_form.addEventListener('submit', (event) => {
             editor.save();
             if (textarea.value == '') {
-                alert("ソースコードが入力されていません");
+                msg('warning', 'ソースコードが入力されていません');
                 event.preventDefault();
             }
         });
