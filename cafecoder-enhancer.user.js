@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    iilj
-// @version      2020.01.04.1
+// @version      2020.01.05.1
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj
 // @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
@@ -72,35 +72,38 @@ div.card-body a.nav-item.nav-link:hover{
         }).show();
     };
 
+    const dqs = (selectors) => document.querySelector(selectors);
+    const dqsa = (selectors) => document.querySelectorAll(selectors);
+
     // add title tag when there exists no title tag
     let result;
-    if (!document.querySelector("title")) {
+    if (!dqs("title")) {
         const title = document.createElement("title");
         let stitle = "";
         if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/(index\.(php|html?))?$/)) {
-            stitle += `${result[1]} (${document.querySelector("h1").innerText.trim()})`;
+            stitle += `${result[1]} (${dqs("h1").innerText.trim()})`;
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/problem_list\.(php|html?)$/)) {
             stitle += `${result[1]} 問題一覧`;
         } else if (result = location.href.match(/www\.cafecoder\.top\/([^\/]+)\/Problems\/([^\/]+)\.(php|html?)$/)) {
             stitle += `${result[1]}-${result[2]}`;
-            const h3 = document.querySelector("h3");
+            const h3 = dqs("h3");
             if (h3) {
                 stitle += " " + h3.innerText.trim();
             }
         }
         stitle += (stitle == "" ? "" : " : ") + "CafeCoder";
         title.innerText = stitle;
-        document.querySelector("head").insertAdjacentElement('afterbegin', title);
+        dqs("head").insertAdjacentElement('afterbegin', title);
     }
 
     // fix invalid/broken uri
-    document.querySelectorAll("a[href*='kakecoder.com']").forEach((lnk) => {
+    dqsa("a[href*='kakecoder.com']").forEach((lnk) => {
         lnk.href = lnk.href.replace('kakecoder.com', 'cafecoder.top');
     });
-    document.querySelectorAll("a[href*='.html']").forEach((lnk) => {
+    dqsa("a[href*='.html']").forEach((lnk) => {
         lnk.href = lnk.href.replace('.html', '.php');
     });
-    document.querySelectorAll("a[href^='//'][href$='.php']").forEach((lnk) => {
+    dqsa("a[href^='//'][href$='.php']").forEach((lnk) => {
         const href = lnk.getAttribute('href');
         if (result = href.match(/^\/\/([^\/]+)\.(php|html?)$/)) {
             lnk.setAttribute('href', href.replace('//', location.href.indexOf("/Problems/") != -1 ? '../' : './'));
@@ -108,9 +111,9 @@ div.card-body a.nav-item.nav-link:hover{
     });
 
     // when problem page
-    if (location.href.indexOf("/Problems/") != -1 && document.querySelector("h3") != null) {
+    if (location.href.indexOf("/Problems/") != -1 && dqs("h3") != null) {
         // improve UI/UX of I/O sample, and add sample copy button feature
-        document.querySelectorAll("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
+        dqsa("span[style]:not([class]), pre[style]:not([class]), div[style]:not([class]), .sample").forEach((node, idx, _nodelist) => {
             if (!node.classList.contains('sample') && !node.style.backgroundColor && node.getAttribute("style").indexOf("background-color") == -1) {
                 return;
             }
@@ -141,14 +144,14 @@ div.card-body a.nav-item.nav-link:hover{
         });
 
         // CodeMirror init
-        const textarea = document.querySelector('form[name=submit_form] textarea[name=sourcecode]');
+        const textarea = dqs('form[name=submit_form] textarea[name=sourcecode]');
         const editor = CodeMirror.fromTextArea(textarea, {
             mode: "text/x-c++src",
             lineNumbers: true,
         });
 
         // CodeMirror lang selection changed event handler
-        const selectlang = document.querySelector('form[name=submit_form] select[name=language]');
+        const selectlang = dqs('form[name=submit_form] select[name=language]');
         selectlang.addEventListener('change', (event) => {
             const modelist = [
                 'text/x-csrc', 'text/x-c++src', 'text/x-java', 'python', 'text/x-csharp'
@@ -161,7 +164,7 @@ div.card-body a.nav-item.nav-link:hover{
         selectlang.classList.add('form-control');
 
         // CodeMirror submit preprocess, remove default broken event
-        const submitbtn = document.querySelector('form[name=submit_form] input[type=submit]');
+        const submitbtn = dqs('form[name=submit_form] input[type=submit]');
         submitbtn.removeAttribute("onclick");
         submitbtn.classList.add('btn-primary');
         document.submit_form.addEventListener('submit', (event) => {
