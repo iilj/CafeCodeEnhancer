@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    iilj
-// @version      2020.01.05.3
+// @version      2020.01.05.4
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj
 // @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
@@ -70,10 +70,12 @@ div.card-body a.nav-item.nav-link:hover{
 
 /* sortable table */
 table.table th {
-    padding: 8px;
+    padding: 6px;
+    vertical-align: middle;
 }
 table.table tbody th {
     font-weight: normal; /* hotfix for unformal use of th tag */
+    position: relative;
 }
 table thead th[data-sort] {
     cursor: pointer;
@@ -83,10 +85,12 @@ table thead th[data-sort]:hover {
     background-color: #dddddd;
 }
 table thead th[data-sort].sort.desc:after {
-    content: " ▼";
+    content: " ▲";
+    color: #888;
 }
 table thead th[data-sort].sort.asc:after {
-    content: " ▲";
+    content: " ▼";
+    color: #888;
 }
 
 /* result icon */
@@ -115,6 +119,38 @@ span.result, th.result>span {
 }
 .WJ {
     background-color: #777;
+}
+
+/* ranking page */
+table.table.cce-ranking-table th {
+    padding: 10px;
+}
+div.point {
+    height: auto;
+    width: auto;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    -webkit-transform: translateY(-50%) translateX(-50%);
+}
+div.point a {
+    color: #00AA3E;
+    font-weight: bold;
+}
+div.point span.submit_time {
+    margin: 0 0 3px;
+    color: #888;
+    font-size: 90%;
+}
+table.table th.cce-ranking-username {
+    font-weight: bold;
+    width: auto;
+    height: auto;
+}
+.cce-ranking-point div.point {
+    color: blue;
+    font-weight: bold;
 }
 
 /* icon */
@@ -342,6 +378,7 @@ span.result, th.result>span {
             valueNames: ['cce-list-sort-0', 'cce-list-sort-1', 'cce-list-sort-2', 'cce-list-sort-3']
         });
     } else if (location.href.indexOf("/problem_list.") != -1) {
+        // on contest problem list page
         const table = dqs('table.table');
 
         const thead = table.querySelector('thead tr');
@@ -363,6 +400,51 @@ span.result, th.result>span {
                 tr0.innerText = '?';
             }
             tr.insertAdjacentElement('afterbegin', tr0);
+        });
+    } else if (location.href.indexOf("/ranking.php?") != -1) {
+        // on contest ranking page
+        const parent = dqs('div.card-body');
+        parent.id = 'cce-list-parent';
+        const table = parent.querySelector('table.table');
+        table.classList.add('table-striped', 'small', 'cce-ranking-table');
+
+        const tbody = table.querySelector('tbody');
+        tbody.classList.add('list');
+        tbody.querySelectorAll('tr').forEach((tr) => {
+            tr.querySelectorAll('th').forEach((td, idx, nodelist) => { /* unformal html (th here should be td) */
+                if (idx == 1) {
+                    td.classList.add('cce-ranking-username');
+                } else if (idx == 2) {
+                    td.classList.add('cce-ranking-point');
+                    td.setAttribute('data-cce-list-sort-point', `${100000000 - Number(td.innerText)}`);
+                } else if (idx >= 3) {
+                    const timespan = td.querySelector('span.submit_time');
+                    if (timespan) {
+                        td.setAttribute('data-cce-list-sort-timespan', timespan.innerText);
+                    } else {
+                        td.setAttribute('data-cce-list-sort-timespan', '99:99:99');
+                    }
+                }
+                td.classList.add(`cce-list-sort-${idx}`);
+            });
+        });
+
+        parent.querySelector('thead').querySelectorAll('tr th').forEach((th, idx, nodelist) => {
+            if (idx == 0) {
+                th.classList.add('asc');
+            }
+            th.classList.add('sort');
+            th.setAttribute('data-sort', `cce-list-sort-${idx}`);
+        });
+        const userList = new List(parent.id, {
+            valueNames: ['cce-list-sort-0', 'cce-list-sort-1',
+                { name: 'cce-list-sort-2', attr: 'data-cce-list-sort-point' },
+                { name: 'cce-list-sort-3', attr: 'data-cce-list-sort-timespan' },
+                { name: 'cce-list-sort-4', attr: 'data-cce-list-sort-timespan' },
+                { name: 'cce-list-sort-5', attr: 'data-cce-list-sort-timespan' },
+                { name: 'cce-list-sort-6', attr: 'data-cce-list-sort-timespan' },
+                { name: 'cce-list-sort-7', attr: 'data-cce-list-sort-timespan' },
+                { name: 'cce-list-sort-8', attr: 'data-cce-list-sort-timespan' }]
         });
     }
 })();
