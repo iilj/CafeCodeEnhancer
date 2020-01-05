@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CafeCoder Enhancer
 // @namespace    iilj
-// @version      2020.01.05.4
+// @version      2020.01.05.5
 // @description  CafeCoder のUIを改善し，コンテストを快適にします（たぶん）
 // @author       iilj
 // @supportURL   https://github.com/iilj/CafeCodeEnhancer/issues
@@ -142,6 +142,7 @@ div.point span.submit_time {
     margin: 0 0 3px;
     color: #888;
     font-size: 90%;
+    font-weight: normal;
 }
 table.table th.cce-ranking-username {
     font-weight: bold;
@@ -410,23 +411,33 @@ table.table th.cce-ranking-username {
 
         const tbody = table.querySelector('tbody');
         tbody.classList.add('list');
-        tbody.querySelectorAll('tr').forEach((tr) => {
+        tbody.querySelectorAll('tr').forEach((tr, tridx) => {
+            let endtime = '00:00:00';
+            const submit_time = document.createElement("span");
+            submit_time.classList.add('submit_time');
             tr.querySelectorAll('th').forEach((td, idx, nodelist) => { /* unformal html (th here should be td) */
                 if (idx == 1) {
                     td.classList.add('cce-ranking-username');
                 } else if (idx == 2) {
                     td.classList.add('cce-ranking-point');
-                    td.setAttribute('data-cce-list-sort-point', `${100000000 - Number(td.innerText)}`);
+                    td.setAttribute('data-cce-list-sort-point', `${tridx}`);
+                    const divpoint = td.firstElementChild;
+                    divpoint.insertAdjacentHTML('beforeend', '<br>');
+                    divpoint.insertAdjacentElement('beforeend', submit_time);
                 } else if (idx >= 3) {
                     const timespan = td.querySelector('span.submit_time');
                     if (timespan) {
                         td.setAttribute('data-cce-list-sort-timespan', timespan.innerText);
+                        if (timespan.innerText > endtime) {
+                            endtime = timespan.innerText;
+                        }
                     } else {
                         td.setAttribute('data-cce-list-sort-timespan', '99:99:99');
                     }
                 }
                 td.classList.add(`cce-list-sort-${idx}`);
             });
+            submit_time.innerText = endtime;
         });
 
         parent.querySelector('thead').querySelectorAll('tr th').forEach((th, idx, nodelist) => {
